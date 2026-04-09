@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clinical Vital Monitoring System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&family=Roboto:wght@300;500&display=swap" rel="stylesheet">
+    
+    <style>
+        body { background-color: #0b111a; color: #ffffff; font-family: 'Roboto', sans-serif; }
+        .monitor-card { background: #161f2b; border: 1px solid #2c3e50; border-radius: 15px; transition: all 0.5s ease; }
+        .value-display { font-family: 'Orbitron', sans-serif; font-size: 4rem; color: #00ffcc; }
+        .status-indicator { height: 15px; width: 15px; border-radius: 50%; display: inline-block; }
+        .bg-normal { border-left: 8px solid #2ecc71; }
+        .bg-alert { border-left: 8px solid #e74c3c; background: #2c1a1a !important; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.4); } 70% { box-shadow: 0 0 0 20px rgba(231, 76, 60, 0); } 100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); } }
+        .header { border-bottom: 1px solid #2c3e50; padding: 20px 0; }
+    </style>
+</head>
+<body>
+
+<div class="header mb-4">
+    <div class="container d-flex justify-content-between align-items-center">
+        <h3 class="m-0 text-uppercase tracking-widest">Central Nursing Station</h3>
+        <div>
+            <span id="conn-status" class="badge bg-success">System Online</span>
+            <span id="last-update" class="ms-3 text-muted small">Last update: --:--:--</span>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <div class="row g-4">
+        <div class="col-md-6">
+            <div id="temp-card" class="monitor-card p-4 h-100 bg-normal">
+                <h5 class="text-muted text-uppercase">Body Temperature</h5>
+                <div class="d-flex align-items-baseline">
+                    <span id="temp-val" class="value-display">--.-</span>
+                    <span class="ms-2 h3 text-muted">°C</span>
+                </div>
+                <p id="temp-msg" class="mt-2 text-success">Stable Condition</p>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div id="bpm-card" class="monitor-card p-4 h-100 bg-normal">
+                <h5 class="text-muted text-uppercase">Heart Rate (Pulse)</h5>
+                <div class="d-flex align-items-baseline">
+                    <span id="bpm-val" class="value-display">--</span>
+                    <span class="ms-2 h3 text-muted">BPM</span>
+                </div>
+                <p id="bpm-msg" class="mt-2 text-success">Normal Rhythm</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="monitor-card p-4">
+                <h5 class="text-muted text-uppercase mb-3">Live Telemetry (ThingSpeak View)</h5>
+                <div class="ratio ratio-21x9">
+                    <iframe src="https://thingspeak.com/channels/YOUR_CHANNEL_ID/charts/1?bgcolor=%23161f2b&color=%2300ffcc&dynamic=true" style="border: none;"></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- CONFIGURATION ---
+    const CHANNEL_ID = 'YOUR_CHANNEL_ID';
+    const READ_API_KEY = 'YOUR_READ_API_KEY';
+    const TEMP_LIMIT = 30.0;
+    const BPM_LIMIT_HIGH = 100;
+    const BPM_LIMIT_LOW = 60;
+
+    async function fetchData() {
+        const url = `https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds/last.json?api_key=${READ_API_KEY}`;
+        
+        try {
+            const response = await fetch(url);
+            const data = await response.json();
+            
+            const temp = parseFloat(data.field1).toFixed(1);
+            const bpm = parseInt(data.field2);
+            const timestamp = new Date(data.created_at).toLocaleTimeString();
+
+            updateUI('temp', temp, TEMP_LIMIT, 'high');
+            updateUI('bpm', bpm, BPM_LIMIT_HIGH, 'high', BPM_LIMIT_LOW);
+            
+            document.getElementById('last-update').innerText = `Last sync: ${timestamp}`;
+            document.getElementById('conn-status').className = "badge bg-success";
+            document.getElementById('conn-status').innerText = "System Online";
+
+        } catch (error) {
+            console.error("Fetch Error:", error);
+            document.getElementById('conn-status').className = "badge bg-danger";
+            document.getElementById('conn-status').innerText = "Connection Lost";
+        }
+    }
+
+    function updateUI(type, value, limitHigh, mode, limitLow = 0) {
+        const valElement = document.getElementById(`${type}-val`);
+        const cardElement = document.getElementById(`${type}-card`);
+        const msgElement = document.getElementById(`${type}-msg`);
+
+        valElement.innerText = value;
+
+        let isAlert = (value > limitHigh || (limitLow > 0 && value < limitLow));
+
+        if (isAlert) {
+            cardElement.className = "monitor-card p-4 h-100 bg-alert";
+            valElement.style.color = "#ff4d4d";
+            msgElement.innerText = "CRITICAL ALERT";
+            msgElement.className = "mt-2 text-danger fw-bold";
+        } else {
+            cardElement.className = "monitor-card p-4 h-100 bg-normal";
+            valElement.style.color = "#00ffcc";
+            msgElement.innerText = "Stable Condition";
+            msgElement.className = "mt-2 text-success";
+        }
+    }
+
+    // Auto-refresh every 15 seconds
+    setInterval(fetchData, 15000);
+    fetchData(); // Initial load
+</script>
+
+</body>
+</html>
