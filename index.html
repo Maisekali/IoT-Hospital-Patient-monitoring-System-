@@ -3,129 +3,240 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Clinical Vital Monitoring System</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&family=Roboto:wght@300;500&display=swap" rel="stylesheet">
-    
+    <title>Cattle Dip | Command Center</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
-        body { background-color: #0b111a; color: #ffffff; font-family: 'Roboto', sans-serif; }
-        .monitor-card { background: #161f2b; border: 1px solid #2c3e50; border-radius: 15px; transition: all 0.5s ease; }
-        .value-display { font-family: 'Orbitron', sans-serif; font-size: 4rem; color: #00ffcc; }
-        .status-indicator { height: 15px; width: 15px; border-radius: 50%; display: inline-block; }
-        .bg-normal { border-left: 8px solid #2ecc71; }
-        .bg-alert { border-left: 8px solid #e74c3c; background: #2c1a1a !important; animation: pulse 2s infinite; }
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.4); } 70% { box-shadow: 0 0 0 20px rgba(231, 76, 60, 0); } 100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); } }
-        .header { border-bottom: 1px solid #2c3e50; padding: 20px 0; }
+        :root {
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --info: #3b82f6;
+            --warning: #f59e0b;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        header {
+            background: linear-gradient(90deg, #1e293b 0%, #334155 100%);
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid #334155;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        h1 { margin: 0; font-size: 1.8rem; letter-spacing: 1px; }
+        .sync-status { font-size: 0.8rem; color: var(--text-dim); margin-top: 5px; }
+
+        .container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            padding: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 1px solid #334155;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(0,0,0,0.4); }
+
+        .card i { font-size: 2rem; margin-bottom: 15px; opacity: 0.8; }
+        .card .label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 2px; color: var(--text-dim); }
+        .card .value { font-size: 2.5rem; font-weight: 800; margin: 10px 0; }
+        .card .sub-text { font-size: 0.9rem; font-weight: 500; }
+
+        /* Conditional Styles */
+        .bg-red { background-color: var(--danger) !important; border-color: #b91c1c; }
+        .bg-green { background-color: var(--success) !important; border-color: #15803d; }
+        .bg-blue { background-color: var(--info) !important; border-color: #1d4ed8; }
+
+        .pump-grid { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+        .led {
+            width: 12px; height: 12px; border-radius: 50%;
+            display: inline-block; margin-right: 8px;
+            background: #475569;
+        }
+        .led.active { background: #4ade80; box-shadow: 0 0 12px #4ade80; }
+
+        footer { margin-top: auto; padding: 20px; font-size: 0.8rem; color: var(--text-dim); text-align: center; }
+
+        @media (max-width: 600px) {
+            .pump-grid { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body>
 
-<div class="header mb-4">
-    <div class="container d-flex justify-content-between align-items-center">
-        <h3 class="m-0 text-uppercase tracking-widest">Central Nursing Station</h3>
-        <div>
-            <span id="conn-status" class="badge bg-success">System Online</span>
-            <span id="last-update" class="ms-3 text-muted small">Last update: --:--:--</span>
-        </div>
-    </div>
-</div>
+<header>
+    <h1><i class="fas fa-microchip"></i> IoT Based Automated Cattle Dip</h1>
+    <div class="sync-status" id="last-sync">Initializing connection to ThingSpeak...</div>
+</header>
 
 <div class="container">
-    <div class="row g-4">
-        <div class="col-md-6">
-            <div id="temp-card" class="monitor-card p-4 h-100 bg-normal">
-                <h5 class="text-muted text-uppercase">Body Temperature</h5>
-                <div class="d-flex align-items-baseline">
-                    <span id="temp-val" class="value-display">--.-</span>
-                    <span class="ms-2 h3 text-muted">°C</span>
-                </div>
-                <p id="temp-msg" class="mt-2 text-success">Stable Condition</p>
-            </div>
-        </div>
-
-        <div class="col-md-6">
-            <div id="bpm-card" class="monitor-card p-4 h-100 bg-normal">
-                <h5 class="text-muted text-uppercase">Heart Rate (Pulse)</h5>
-                <div class="d-flex align-items-baseline">
-                    <span id="bpm-val" class="value-display">--</span>
-                    <span class="ms-2 h3 text-muted">BPM</span>
-                </div>
-                <p id="bpm-msg" class="mt-2 text-success">Normal Rhythm</p>
-            </div>
-        </div>
+    <div class="card" id="temp-card">
+        <i class="fas fa-temperature-high"></i>
+        <div class="label">Temperature</div>
+        <div class="value" id="temp-val">--</div>
+        <div class="sub-text">&deg;C</div>
     </div>
 
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="monitor-card p-4">
-                <h5 class="text-muted text-uppercase mb-3">Live Telemetry (ThingSpeak View)</h5>
-                <div class="ratio ratio-21x9">
-                    <iframe src="https://thingspeak.com/channels/YOUR_CHANNEL_ID/charts/1?bgcolor=%23161f2b&color=%2300ffcc&dynamic=true" style="border: none;"></iframe>
-                </div>
+    <div class="card" id="depth-card">
+        <i class="fas fa-fill-drip"></i>
+        <div class="label">Acaricide Level</div>
+        <div class="value" id="depth-val">--</div>
+        <div class="sub-text" id="depth-status">Waiting for data...</div>
+    </div>
+
+    <div class="card">
+        <i class="fas fa-vial"></i>
+        <div class="label">Concentration</div>
+        <div class="value" id="conc-val">--</div>
+        <div class="sub-text">% Percentage</div>
+    </div>
+
+    <div class="card">
+        <i class="fas fa-weight-hanging"></i>
+        <div class="label">Last Animal Weight</div>
+        <div class="value" id="weight-val">--</div>
+        <div class="sub-text">Grams (g)</div>
+    </div>
+
+    <div class="card">
+        <i class="fas fa-cow"></i>
+        <div class="label">Total Animals</div>
+        <div class="value" id="count-val">--</div>
+        <div class="sub-text">Daily Session</div>
+    </div>
+
+    <div class="pump-grid">
+        <div class="card" style="flex-direction: row; justify-content: space-around;">
+            <div class="label">Spray Pump</div>
+            <div>
+                <span id="spray-led" class="led"></span>
+                <span id="spray-text" class="value" style="font-size: 1.2rem;">OFF</span>
+            </div>
+        </div>
+        <div class="card" style="flex-direction: row; justify-content: space-around;">
+            <div class="label">Refill Pump</div>
+            <div>
+                <span id="refill-led" class="led"></span>
+                <span id="refill-text" class="value" style="font-size: 1.2rem;">OFF</span>
             </div>
         </div>
     </div>
 </div>
 
+<footer>
+    Project by Brian Maisiba Ontier &copy; 2026 | Real-time IoT Monitoring
+</footer>
+
 <script>
-    // --- CONFIGURATION ---
-    const CHANNEL_ID = 'YOUR_CHANNEL_ID';
-    const READ_API_KEY = 'YOUR_READ_API_KEY';
-    const TEMP_LIMIT = 30.0;
-    const BPM_LIMIT_HIGH = 100;
-    const BPM_LIMIT_LOW = 60;
+    const CONFIG = {
+        channelID: "3314650",
+        apiKey: "BTZILKVBZTVJJV2T"
+    };
 
     async function fetchData() {
-        const url = `https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds/last.json?api_key=${READ_API_KEY}`;
+        const url = `https://api.thingspeak.com/channels/${CONFIG.channelID}/feeds.json?api_key=${CONFIG.apiKey}&results=1`;
         
         try {
             const response = await fetch(url);
             const data = await response.json();
-            
-            const temp = parseFloat(data.field1).toFixed(1);
-            const bpm = parseInt(data.field2);
-            const timestamp = new Date(data.created_at).toLocaleTimeString();
+            const feed = data.feeds[0];
 
-            updateUI('temp', temp, TEMP_LIMIT, 'high');
-            updateUI('bpm', bpm, BPM_LIMIT_HIGH, 'high', BPM_LIMIT_LOW);
-            
-            document.getElementById('last-update').innerText = `Last sync: ${timestamp}`;
-            document.getElementById('conn-status').className = "badge bg-success";
-            document.getElementById('conn-status').innerText = "System Online";
-
+            if (feed) {
+                updateUI(feed);
+                document.getElementById('last-sync').innerText = "Last Sync: " + new Date(feed.created_at).toLocaleTimeString();
+            }
         } catch (error) {
-            console.error("Fetch Error:", error);
-            document.getElementById('conn-status').className = "badge bg-danger";
-            document.getElementById('conn-status').innerText = "Connection Lost";
+            console.error("Sync Error:", error);
+            document.getElementById('last-sync').innerText = "Sync Error - Retrying...";
         }
     }
 
-    function updateUI(type, value, limitHigh, mode, limitLow = 0) {
-        const valElement = document.getElementById(`${type}-val`);
-        const cardElement = document.getElementById(`${type}-card`);
-        const msgElement = document.getElementById(`${type}-msg`);
-
-        valElement.innerText = value;
-
-        let isAlert = (value > limitHigh || (limitLow > 0 && value < limitLow));
-
-        if (isAlert) {
-            cardElement.className = "monitor-card p-4 h-100 bg-alert";
-            valElement.style.color = "#ff4d4d";
-            msgElement.innerText = "CRITICAL ALERT";
-            msgElement.className = "mt-2 text-danger fw-bold";
+    function updateUI(feed) {
+        // 1. Temperature Logic
+        const temp = parseFloat(feed.field1);
+        const tempCard = document.getElementById('temp-card');
+        document.getElementById('temp-val').innerText = temp.toFixed(1);
+        
+        if (temp >= 30) {
+            tempCard.className = 'card bg-red';
         } else {
-            cardElement.className = "monitor-card p-4 h-100 bg-normal";
-            valElement.style.color = "#00ffcc";
-            msgElement.innerText = "Stable Condition";
-            msgElement.className = "mt-2 text-success";
+            tempCard.className = 'card bg-green';
+        }
+
+        // 2. Depth Logic
+        const depth = parseFloat(feed.field2);
+        const depthCard = document.getElementById('depth-card');
+        const depthStatus = document.getElementById('depth-status');
+        document.getElementById('depth-val').innerText = depth.toFixed(1) + " cm";
+
+        if (depth < 5) {
+            depthCard.className = 'card bg-green';
+            depthStatus.innerText = "OK Acaricide Level";
+        } else if (depth >= 5 && depth <= 8) {
+            depthCard.className = 'card bg-blue';
+            depthStatus.innerText = "Medium Acaricide Level";
+        } else {
+            depthCard.className = 'card bg-red';
+            depthStatus.innerText = "Low Acaricide Level";
+        }
+
+        // 3. Simple Fields
+        document.getElementById('count-val').innerText = feed.field3 || "0";
+        document.getElementById('weight-val').innerText = parseInt(feed.field6) || "0";
+        document.getElementById('conc-val').innerText = parseFloat(feed.field7).toFixed(1);
+
+        // 4. Pump Indicators
+        updatePump('spray', feed.field4);
+        updatePump('refill', feed.field5);
+    }
+
+    function updatePump(prefix, value) {
+        const led = document.getElementById(prefix + '-led');
+        const text = document.getElementById(prefix + '-text');
+        if (parseInt(value) === 1) {
+            led.classList.add('active');
+            text.innerText = "ACTIVE";
+            text.style.color = "var(--success)";
+        } else {
+            led.classList.remove('active');
+            text.innerText = "OFF";
+            text.style.color = "var(--text-dim)";
         }
     }
 
-    // Auto-refresh every 15 seconds
+    // Run sync every 15 seconds
     setInterval(fetchData, 15000);
     fetchData(); // Initial load
 </script>
 
 </body>
-</html>
+    </html>
